@@ -16,4 +16,6 @@ public interface BookingService{
     Lesson getLesson(int lessonId);
 
     List<Lesson> getLessonsForPupil(int matric);
+
+    void cancelLesson (int lessonId, int matric);
 }

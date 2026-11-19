@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.web.bind.annotation.DeleteMapping;
 
 import booking.model.BookingRequest;
 import booking.model.Lesson;
@@ -47,5 +48,10 @@ public class LessonController{
     @GetMapping ("/lessons")
     public ResponseEntity<List<Lesson>> getLessonsForPupil(@RequestParam int matric){
         return ResponseEntity.ok(bookingService.getLessonsForPupil(matric));
+    }
+    @DeleteMapping ("/lessons/{lessonId}")
+    public ResponseEntity<Void> cancelLesson(@PathVariable int lessonId, @RequestParam int matric){
+        bookingService.cancelLesson(lessonId, matric);
+        return ResponseEntity.noContent().build();
     }
 }

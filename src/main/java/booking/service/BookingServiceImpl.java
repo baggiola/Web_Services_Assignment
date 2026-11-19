@@ -124,6 +124,7 @@ public synchronized Lesson bookLesson(BookingRequest request){
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "The name of the pupil does not match the matriculation number you have entered");
 
         }
+
     
     InstrumentLevel level = pupil.instruments().get(request.instrument());
     if (level == null){
@@ -145,6 +146,18 @@ public synchronized Lesson bookLesson(BookingRequest request){
     nextLessonId++;
     return lesson;
 }
+@Override 
+    public synchronized void cancelLesson(int lessonId, int matric){
+        Lesson lesson = lessons.get(lessonId);
+        if (lesson == null){
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,"There is no lesson with this Id" + lessonId);
+        }
+        if (lesson.matric()!=matric){
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"This lesson belongs to another pupil");
+
+        }
+        lessons.remove(lessonId);
+    }
 private boolean isBooked(String slotId){
     for(Lesson lesson : lessons.values()){
         if(lesson.slotId().equals(slotId)){
