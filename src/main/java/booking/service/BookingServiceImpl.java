@@ -185,5 +185,14 @@ public synchronized List<Lesson> getLessonsForDay(DayOfWeek day){
     result.sort(Comparator.comparing(Lesson::slotId));
     return result;
 }
+@Override 
+public synchronized void setSlotBlocked(String slotId, boolean blocked){
+    Slot slot = slots.get(slotId);
+    if (slot == null){
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "There is no slot with this id" + slotId);
+
+    }
+    slot.setBlocked(blocked);
+}
 
 }

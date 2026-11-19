@@ -21,4 +21,6 @@ public interface BookingService{
     void cancelLesson (int lessonId, int matric);
 
     List<Lesson> getLessonsForDay(DayOfWeek day);
+
+    void setSlotBlocked(String slotId, boolean blocked);
 }
