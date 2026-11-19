@@ -5,6 +5,7 @@ import booking.model.BookingRequest;
 import booking.model.Slot;
 import booking.model.Tutor;
 import booking.model.Lesson;
+import java.time.DayOfWeek;
 
 public interface BookingService{
     List<Tutor> getTutors();
@@ -18,4 +19,6 @@ public interface BookingService{
     List<Lesson> getLessonsForPupil(int matric);
 
     void cancelLesson (int lessonId, int matric);
+
+    List<Lesson> getLessonsForDay(DayOfWeek day);
 }

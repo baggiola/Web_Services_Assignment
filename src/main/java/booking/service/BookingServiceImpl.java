@@ -19,6 +19,7 @@ import booking.model.BookingRequest;
 import booking.model.InstrumentLevel;
 import booking.model.Lesson;
 import booking.model.PupilRecord;
+import java.util.Comparator;
 
 
 @Component
@@ -172,6 +173,17 @@ private boolean hasLessonOnDay(int matric, DayOfWeek day){
             return true;
         }
     }return false;
+}
+@Override 
+public synchronized List<Lesson> getLessonsForDay(DayOfWeek day){
+    List<Lesson> result = new ArrayList<>();
+    for (Lesson lesson : lessons.values()){
+        if (slots.get(lesson.slotId()).getDay() == day){
+            result.add(lesson);
+        }
+    }
+    result.sort(Comparator.comparing(Lesson::slotId));
+    return result;
 }
 
 }
