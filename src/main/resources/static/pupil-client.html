@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang ="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Music Lesson Booking</title>
+        <style>
+            body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; }
+            section { border: 1px solid #ccc; padding: 10px 15px; margin-bottom: 15px; }
+            label { display: inline-block; width: 130px; }
+            table { border-collapse: collapse; margin-top: 10px; }
+            th, td { border: 1px solid #ccc; padding: 4px 8px; }
+            #message { font-weight: bold; }
+        </style>
+    </head>
+    <body>
+        <h1>Music Lesson Booking</h1>
+        <p id = "message"></p>
+        <section>
+            <h2>Tutor</h2>
+            <p id="tutor"></p>
+        </section>
+
+        <section>
+            <h2>Book a Lesson</h2>
+            <label for="matric">Matric number</label><input id="matric" type="number"><br>
+            <label for="name">Name</label><input id="name"><br>
+            <label for="instrument">Instrument</label><select id="instrument"></select><br>
+            <label for="slot">Available slot</label><select id="slot"></select><br>
+            <button onclick="bookLesson()">Book</button>
+        </section>
+
+        <section>
+            <h2>My lessons</h2>
+            <button onclick="loadMyLessons()">Show my lessons</button>
+            <table id="lessons"></table>
+        </section>
+
+        <script>
+            const tutorUrl = "/tutors/1";
+            function showMessage(text,isError){
+                const message = document.getElementById("message");
+                message.textContent = text;
+                message.style.color = isError ? "darkred" : "darkgreen";
+
+            }
+
+            async function showError(response){
+                const problem = await response.json();
+                showMessage(response.status + " " + problem.title + ": " + problem.detail,true);
+            }
+
+            async function loadTutor() {
+                try {
+                    const response = await fetch(tutorUrl);
+                    const tutor = await response.json();
+                    const select = document.getElementById("instrument");
+                    select.innerHTML = "";
+                    const descriptions = [];
+                    for (const [instrument, range] of Object.entries(tutor.instruments)) {
+                        select.add(new Option(instrument, instrument));
+                        descriptions.push(instrument + " (grades " + range.min + "-" + range.max + ")");
+                    }
+                    document.getElementById("tutor").textContent = tutor.name + " teaches " + descriptions.join(", ");
+                } catch (error) {
+                    showMessage("Could not reach the booking service: " + error.message, true);
+                }
+            }
+
+            async function loadSlots() {
+                try {
+                    const response = await fetch(tutorUrl + "/slots?available=true");
+                    const slots = await response.json();
+                    const select = document.getElementById("slot");
+                    select.innerHTML = "";
+                    for (const slot of slots) {
+                        select.add(new Option(slot.day + " " + slot.startTime.substring(0, 5), slot.id));
+                    }
+                } catch (error) {
+                    showMessage("Could not reach the booking service: " + error.message, true);
+                }
+            }
+
+            async function bookLesson() {
+                const request = {
+                    matric: Number(document.getElementById("matric").value),
+                    name: document.getElementById("name").value,
+                    instrument: document.getElementById("instrument").value,
+                    slotId: document.getElementById("slot").value
+                };
+                try {
+                    const response = await fetch("/lessons", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(request)
+                    });
+                    if (response.ok) {
+                        const lesson = await response.json();
+                        showMessage("Booked lesson " + lesson.id + ": " + lesson.instrument + " in slot " + lesson.slotId, false);
+                        await loadSlots();
+                        await loadMyLessons();
+                    } else {
+                        await showError(response);
+                    }
+                } catch (error) {
+                    showMessage("Could not reach the booking service: " + error.message, true);
+                }
+            }
+
+            async function loadMyLessons() {
+                const matric = document.getElementById("matric").value;
+                if (matric === "") {
+                    showMessage("Enter your matric number first", true);
+                    return;
+                }
+                try {
+                    const response = await fetch("/lessons?matric=" + encodeURIComponent(matric));
+                    const lessons = await response.json();
+                    const table = document.getElementById("lessons");
+                    table.innerHTML = "<tr><th>Slot</th><th>Instrument</th><th></th></tr>";
+                    for (const lesson of lessons) {
+                        const row = table.insertRow();
+                        row.insertCell().textContent = lesson.slotId;
+                        row.insertCell().textContent = lesson.instrument;
+                        const button = document.createElement("button");
+                        button.textContent = "Cancel";
+                        button.onclick = () => cancelLesson(lesson.id);
+                        row.insertCell().appendChild(button);
+                    }
+                } catch (error) {
+                    showMessage("Could not reach the booking service: " + error.message, true);
+                }
+            }
+
+            async function cancelLesson(lessonId) {
+                const matric = document.getElementById("matric").value;
+                try {
+                    const response = await fetch("/lessons/" + lessonId + "?matric=" + encodeURIComponent(matric), {
+                        method: "DELETE"
+                    });
+                    if (response.status === 204) {
+                        showMessage("Lesson " + lessonId + " cancelled", false);
+                        await loadSlots();
+                        await loadMyLessons();
+                    } else {
+                        await showError(response);
+                    }
+                } catch (error) {
+                    showMessage("Could not reach the booking service: " + error.message, true);
+                }
+            }
+
+            loadTutor();
+            loadSlots();
+        </script>
+    </body>
+</html>

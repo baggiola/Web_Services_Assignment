@@ -5,7 +5,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestClientExtensionsKt;
 import org.springframework.web.server.ResponseStatusException;
 import booking.model.PupilRecord;
 import booking.model.TrackerResponse;

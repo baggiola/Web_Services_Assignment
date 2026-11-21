@@ -125,21 +125,13 @@ public synchronized Lesson bookLesson(BookingRequest request){
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "The name of the pupil does not match the matriculation number you have entered");
 
         }
-
     
-    InstrumentLevel level = pupil.instruments().get(request.instrument());
-    if (level == null){
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The pupil does not play" + request.instrument());
+    String violation = findRuleViolation(pupil, request.instrument(), slot);
+    if (violation != null) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, violation);
     }
-    if (!range.includes(level.grade())){
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-            "The tutor teaches " + request.instrument() + "at grades " + range.min() + "-" +range.max()+ "only");
-    }
-    if(pupil.age() < 16 && !slot.getStartTime().isBefore(UNDER_16_CUTOFF)){
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Pupils that are under 16 can't book lesson after 6pm");
-    }
-    if(hasLessonOnDay(pupil.matric(),slot.getDay())){
-        throw new ResponseStatusException(HttpStatus.CONFLICT, "The pupil alread has a lesson booked on "+ slot.getDay());
+    if (hasLessonOnDay(pupil.matric(), slot.getDay())) {
+        throw new ResponseStatusException(HttpStatus.CONFLICT, "The pupil already has a lesson booked on " + slot.getDay());
     }
 
     Lesson lesson = new Lesson(nextLessonId, pupil.matric(), pupil.name(),request.instrument(), slot.getId());
@@ -166,6 +158,23 @@ private boolean isBooked(String slotId){
         }
     }return false;
 }
+ private String findRuleViolation(PupilRecord pupil, String instrument, Slot slot) {
+        GradeRange range = tutor.instruments().get(instrument);
+        if (range == null) {
+            return "The tutor does not teach " + instrument;
+        }
+        InstrumentLevel level = pupil.instruments().get(instrument);
+        if (level == null) {
+            return "The pupil does not play " + instrument;
+        }
+        if (!range.includes(level.grade())) {
+            return "The tutor teaches " + instrument + " at grades " + range.min() + "-" + range.max() + " only";
+        }
+        if (pupil.age() < 16 && !slot.getStartTime().isBefore(UNDER_16_CUTOFF)) {
+            return "Pupils under 16 cannot book lessons after 6pm";
+        }
+        return null;
+    }
 
 private boolean hasLessonOnDay(int matric, DayOfWeek day){
     for(Lesson lesson:lessons.values()){
@@ -194,5 +203,17 @@ public synchronized void setSlotBlocked(String slotId, boolean blocked){
     }
     slot.setBlocked(blocked);
 }
+    @Override
+    public synchronized List<Lesson> checkLessons() {
+        List<Lesson> cancelled = new ArrayList<>();
+        for (Lesson lesson : new ArrayList<>(lessons.values())) {
+            PupilRecord pupil = trackerClient.getPupil(lesson.matric());
+            if (pupil == null || findRuleViolation(pupil, lesson.instrument(), slots.get(lesson.slotId())) != null) {
+                lessons.remove(lesson.id());
+                cancelled.add(lesson);
+            }
+        }
+        return cancelled;
+    }
 
 }

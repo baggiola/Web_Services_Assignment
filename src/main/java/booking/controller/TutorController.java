@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 
 import booking.model.Lesson;
 import booking.model.Slot;
@@ -86,6 +87,13 @@ public class TutorController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No tutor with id " + tutorId);
         }
         return tutor;
+    }
+        @PostMapping("/tutors/{tutorId}/lesson-checks")
+    public ResponseEntity<List<Lesson>> checkLessons(@PathVariable int tutorId,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        checkTutorKey(authorization);
+        findTutor(tutorId);
+        return ResponseEntity.ok(bookingService.checkLessons());
     }
 }
 

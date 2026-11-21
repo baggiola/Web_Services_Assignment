@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tutor View - Music Lesson Booking</title>
+<style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; }
+    section { border: 1px solid #ccc; padding: 10px 15px; margin-bottom: 15px; }
+    label { display: inline-block; width: 130px; }
+    table { border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 4px 8px; }
+    #message { font-weight: bold; }
+</style>
+</head>
+<body>
+<h1>Tutor View</h1>
+<p id="message"></p>
+
+<section>
+    <h2>Sign in and choose a day</h2>
+    <label for="apiKey">API key</label><input id="apiKey" type="password" size="50"><br>
+    <label for="day">Day</label>
+    <select id="day">
+        <option>MONDAY</option>
+        <option>TUESDAY</option>
+        <option>WEDNESDAY</option>
+        <option>THURSDAY</option>
+        <option>FRIDAY</option>
+        <option>SATURDAY</option>
+    </select>
+    <button onclick="loadDay()">Show day</button>
+</section>
+
+<section>
+    <h2>Lessons and slots</h2>
+    <table id="schedule"></table>
+</section>
+
+<section>
+    <h2>Check bookings</h2>
+    <p>Re-check every booking against the pupil level tracker and cancel any that no longer meet the rules.</p>
+    <button onclick="checkLessons()">Check bookings</button>
+    <table id="cancelled"></table>
+</section>
+
+<script>
+const tutorUrl = "/tutors/1";
+
+function showMessage(text, isError) {
+    const message = document.getElementById("message");
+    message.textContent = text;
+    message.style.color = isError ? "darkred" : "darkgreen";
+}
+
+async function showError(response) {
+    const problem = await response.json();
+    showMessage(response.status + " " + problem.title + ": " + problem.detail, true);
+}
+
+function authHeaders() {
+    return { "Authorization": "Bearer " + document.getElementById("apiKey").value };
+}
+
+async function loadDay() {
+    const day = document.getElementById("day").value;
+    try {
+        const lessonsResponse = await fetch(tutorUrl + "/lessons?day=" + day, { headers: authHeaders() });
+        if (!lessonsResponse.ok) {
+            await showError(lessonsResponse);
+            return;
+        }
+        const lessons = await lessonsResponse.json();
+        const slotsResponse = await fetch(tutorUrl + "/slots");
+        const slots = await slotsResponse.json();
+
+        const table = document.getElementById("schedule");
+        table.innerHTML = "<tr><th>Time</th><th>Lesson</th><th>Status</th><th></th></tr>";
+        for (const slot of slots) {
+            if (slot.day !== day) {
+                continue;
+            }
+            const lesson = lessons.find(l => l.slotId === slot.id);
+            const row = table.insertRow();
+            row.insertCell().textContent = slot.startTime.substring(0, 5);
+            row.insertCell().textContent = lesson ? lesson.pupilName + " (" + lesson.matric + "), " + lesson.instrument : "";
+            row.insertCell().textContent = slot.blocked ? "Blocked" : "Open";
+            const button = document.createElement("button");
+            button.textContent = slot.blocked ? "Unblock" : "Block";
+            button.onclick = () => setBlocked(slot.id, !slot.blocked);
+            row.insertCell().appendChild(button);
+        }
+        showMessage("Showing " + day + ": " + lessons.length + " lesson(s) booked", false);
+    } catch (error) {
+        showMessage("Could not reach the booking service: " + error.message, true);
+    }
+}
+
+async function setBlocked(slotId, blocked) {
+    try {
+        const response = await fetch(tutorUrl + "/slots/" + slotId + "/block", {
+            method: blocked ? "PUT" : "DELETE",
+            headers: authHeaders()
+        });
+        if (response.status === 204) {
+            await loadDay();
+        } else {
+            await showError(response);
+        }
+    } catch (error) {
+        showMessage("Could not reach the booking service: " + error.message, true);
+    }
+}
+
+async function checkLessons() {
+    try {
+        const response = await fetch(tutorUrl + "/lesson-checks", {
+            method: "POST",
+            headers: authHeaders()
+        });
+        if (!response.ok) {
+            await showError(response);
+            return;
+        }
+        const cancelled = await response.json();
+        const table = document.getElementById("cancelled");
+        table.innerHTML = "";
+        if (cancelled.length === 0) {
+            showMessage("All bookings are still valid", false);
+            return;
+        }
+        table.innerHTML = "<tr><th>Slot</th><th>Pupil</th><th>Instrument</th></tr>";
+        for (const lesson of cancelled) {
+            const row = table.insertRow();
+            row.insertCell().textContent = lesson.slotId;
+            row.insertCell().textContent = lesson.pupilName + " (" + lesson.matric + ")";
+            row.insertCell().textContent = lesson.instrument;
+        }
+        showMessage(cancelled.length + " booking(s) cancelled", false);
+    } catch (error) {
+        showMessage("Could not reach the booking service: " + error.message, true);
+    }
+}
+</script>
+</body>
+</html>

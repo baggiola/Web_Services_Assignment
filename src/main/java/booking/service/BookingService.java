@@ -23,4 +23,6 @@ public interface BookingService{
     List<Lesson> getLessonsForDay(DayOfWeek day);
 
     void setSlotBlocked(String slotId, boolean blocked);
+    
+    List<Lesson> checkLessons();
 }
